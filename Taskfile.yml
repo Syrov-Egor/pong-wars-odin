@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+silent: true
+
+vars:
+  BIN_DIR: "bin"
+  EXE_NAME: "pong"
+
+tasks:
+  default:
+    desc: "Task runner for pong wars in Odin language + raylib"
+    cmds:
+      - echo "Task runner for pong wars in Odin language + raylib. To see all of the tasks, run 'task --list"
+    
+  build:
+    desc: "Build the project into the local executable"
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - odin build . -out:{{.BIN_DIR}}/{{.EXE_NAME}}
+  
+  launch:
+    desc: "Lauch the project"
+    deps: [build]
+    cmds:
+      - ./{{.BIN_DIR}}/{{.EXE_NAME}}
