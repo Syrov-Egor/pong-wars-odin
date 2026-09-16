@@ -25,6 +25,8 @@ JITTER_RANGE :: 700
 SLIDER_MIN :: 0.0
 SLIDER_MAX :: 5.0
 
+mono_font: rl.Font
+
 Colors :: enum {
 	NightColor,
 	DayColor,
@@ -55,6 +57,7 @@ Game_State :: struct {
 main :: proc() {
 	set_config()
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Pong wars")
+	init_font()
 	init_gui_style()
 
 	gs := init_game()
@@ -64,6 +67,7 @@ main :: proc() {
 		draw(&gs)
 	}
 
+	rl.UnloadFont(mono_font)
 	rl.CloseWindow()
 }
 
@@ -157,17 +161,17 @@ draw_balls :: proc(gs: ^Game_State) {
 }
 
 draw_panel :: proc(gs: ^Game_State) {
-	text := fmt.ctprintf("day %3d  |  night %3d", gs.day_score, gs.night_score)
-	font_size: i32 = 20
-	text_width := rl.MeasureText(text, font_size)
+	text := fmt.ctprintf("day %3d | night %3d", gs.day_score, gs.night_score)
+	font_size: f32 = 32.0
+	text_width := rl.MeasureTextEx(mono_font, text, font_size, 0)
 
-	text_x := (W_WIDTH - text_width) / 2
-	text_y := W_HEIGHT + 15
+	text_x := (f32(W_WIDTH) - text_width.x) / 2
+	text_y := f32(W_HEIGHT) + 15
 
-	rl.DrawText(text, text_x, i32(text_y), font_size, Color_Palette[.NightColor])
+	rl.DrawTextEx(mono_font, text, {text_x, text_y}, font_size, 0, Color_Palette[.NightColor])
 
 	slider_x := f32(W_WIDTH - SLIDER_WIDTH) / 2
-	slider_y := f32(W_HEIGHT + 50)
+	slider_y := f32(W_HEIGHT + 60)
 
 	rl.GuiSlider(
 		{slider_x, slider_y, SLIDER_WIDTH, SLIDER_HEIGHT},
@@ -178,21 +182,23 @@ draw_panel :: proc(gs: ^Game_State) {
 		SLIDER_MAX,
 	)
 
-	label_font_size: i32 = 20
-	rl.DrawText(
+	label_font_size: f32 = 24
+	rl.DrawTextEx(
+		mono_font,
 		"0x",
-		i32(slider_x) - 35,
-		i32(slider_y) + 2,
+		{f32(slider_x) - 35.0, f32(slider_y) - 3},
 		label_font_size,
+		0,
 		Color_Palette[.NightColor],
 	)
 
 	speed_label := fmt.ctprintf("%.1fx", gs.speed)
-	rl.DrawText(
+	rl.DrawTextEx(
+		mono_font,
 		speed_label,
-		i32(slider_x) + SLIDER_WIDTH + 10,
-		i32(slider_y) + 2,
+		{f32(slider_x) + 315.0, f32(slider_y) - 3},
 		label_font_size,
+		0,
 		Color_Palette[.NightColor],
 	)
 }
@@ -260,6 +266,11 @@ add_randomness :: proc(gs: ^Game_State, dt: f32) {
 			ball.vel.y = MIN_SPEED if ball.vel.y > 0 else -MIN_SPEED
 		}
 	}
+}
+
+init_font :: proc() {
+	mono_font = rl.LoadFontEx("assets/RobotoMono-Regular.ttf", 64, nil, 0)
+	rl.SetTextureFilter(mono_font.texture, .BILINEAR)
 }
 
 init_gui_style :: proc() {
