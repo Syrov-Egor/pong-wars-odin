@@ -6,12 +6,14 @@ import rl "vendor:raylib"
 
 W_HEIGHT :: 800
 W_WIDTH :: 800
-TARGET_FPS :: 100
 SQUARE_SIZE :: 40
+TARGET_FPS :: 144
 NUM_SQUARES_X :: W_WIDTH / SQUARE_SIZE
 NUM_SQUARES_Y :: W_HEIGHT / SQUARE_SIZE
-MIN_SPEED :: 5
-MAX_SPEED :: 10
+JITTER_RANGE :: 700
+INITIAL_VELOCITY :: 900
+MIN_SPEED :: 600
+MAX_SPEED :: 1200
 
 Colors :: enum {
 	NightColor,
@@ -36,8 +38,7 @@ Game_State :: struct {
 }
 
 main :: proc() {
-	rl.SetConfigFlags({.MSAA_4X_HINT})
-	rl.SetTargetFPS(TARGET_FPS)
+	set_config()
 	rl.InitWindow(W_HEIGHT, W_WIDTH, "Pong wars")
 
 	gs := init_game()
@@ -48,6 +49,11 @@ main :: proc() {
 	}
 
 	rl.CloseWindow()
+}
+
+set_config :: proc() {
+	rl.SetConfigFlags({.MSAA_4X_HINT})
+	rl.SetTargetFPS(TARGET_FPS)
 }
 
 init_game :: proc() -> Game_State {
@@ -63,13 +69,13 @@ init_game :: proc() -> Game_State {
 	balls := [2]Ball {
 		{
 			pos = {W_WIDTH / 4, W_HEIGHT / 2},
-			vel = {8, -8},
+			vel = {INITIAL_VELOCITY, -INITIAL_VELOCITY},
 			reverse_color = Color_Palette[.DayColor],
 			ball_color = Color_Palette[.NightColor],
 		},
 		{
 			pos = {(W_WIDTH / 4) * 3, W_HEIGHT / 2},
-			vel = {-8, 8},
+			vel = {-INITIAL_VELOCITY, INITIAL_VELOCITY},
 			reverse_color = Color_Palette[.NightColor],
 			ball_color = Color_Palette[.DayColor],
 		},
@@ -79,13 +85,15 @@ init_game :: proc() -> Game_State {
 }
 
 update :: proc(gs: ^Game_State) {
+	dt := rl.GetFrameTime()
+
 	check_square_collision(gs)
-	check_boundary_collision(gs)
+	check_boundary_collision(gs, dt)
 	for &ball in gs.balls {
-		ball.pos.x += ball.vel.x
-		ball.pos.y += ball.vel.y
+		ball.pos.x += ball.vel.x * dt
+		ball.pos.y += ball.vel.y * dt
 	}
-	add_randomness(gs)
+	add_randomness(gs, dt)
 }
 
 draw :: proc(gs: ^Game_State) {
@@ -142,23 +150,23 @@ check_square_collision :: proc(gs: ^Game_State) {
 	}
 }
 
-check_boundary_collision :: proc(gs: ^Game_State) {
+check_boundary_collision :: proc(gs: ^Game_State, dt: f32) {
 	for &ball in gs.balls {
-		if ball.pos.x + ball.vel.x > W_WIDTH - f32(SQUARE_SIZE) / 2.0 ||
-		   ball.pos.x + ball.vel.x < f32(SQUARE_SIZE) / 2.0 {
+		if ball.pos.x + ball.vel.x * dt > W_WIDTH - f32(SQUARE_SIZE) / 2.0 ||
+		   ball.pos.x + ball.vel.x * dt < f32(SQUARE_SIZE) / 2.0 {
 			ball.vel.x = -ball.vel.x
 		}
-		if ball.pos.y + ball.vel.y > W_HEIGHT - f32(SQUARE_SIZE) / 2.0 ||
-		   ball.pos.y + ball.vel.y < f32(SQUARE_SIZE) / 2.0 {
+		if ball.pos.y + ball.vel.y * dt > W_HEIGHT - f32(SQUARE_SIZE) / 2.0 ||
+		   ball.pos.y + ball.vel.y * dt < f32(SQUARE_SIZE) / 2.0 {
 			ball.vel.y = -ball.vel.y
 		}
 	}
 }
 
-add_randomness :: proc(gs: ^Game_State) {
+add_randomness :: proc(gs: ^Game_State, dt: f32) {
 	for &ball in gs.balls {
-		ball.vel.x += rand.float32() * 0.02 - 0.01
-		ball.vel.y += rand.float32() * 0.02 - 0.01
+		ball.vel.x += (rand.float32() * JITTER_RANGE - JITTER_RANGE / 2) * dt
+		ball.vel.y += (rand.float32() * JITTER_RANGE - JITTER_RANGE / 2) * dt
 
 		ball.vel.x = min(max(ball.vel.x, -MAX_SPEED), MAX_SPEED)
 		ball.vel.y = min(max(ball.vel.y, -MAX_SPEED), MAX_SPEED)
