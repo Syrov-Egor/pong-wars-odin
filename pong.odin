@@ -57,8 +57,7 @@ Game_State :: struct {
 main :: proc() {
 	set_config()
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Pong wars")
-	init_font()
-	init_gui_style()
+	init_resources()
 
 	gs := init_game()
 
@@ -67,7 +66,7 @@ main :: proc() {
 		draw(&gs)
 	}
 
-	rl.UnloadFont(mono_font)
+	cleanup()
 	rl.CloseWindow()
 }
 
@@ -268,6 +267,11 @@ add_randomness :: proc(gs: ^Game_State, dt: f32) {
 	}
 }
 
+init_resources :: proc() {
+	init_font()
+	init_gui_style()
+}
+
 init_font :: proc() {
 	mono_font = rl.LoadFontEx("assets/RobotoMono-Regular.ttf", 64, nil, 0)
 	rl.SetTextureFilter(mono_font.texture, .BILINEAR)
@@ -288,4 +292,8 @@ init_gui_style :: proc() {
 	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BORDER_COLOR_PRESSED), night)
 	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BASE_COLOR_PRESSED), day)
 	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.TEXT_COLOR_PRESSED), day)
+}
+
+cleanup :: proc() {
+	rl.UnloadFont(mono_font)
 }
