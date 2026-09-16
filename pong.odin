@@ -1,28 +1,40 @@
 package pong
 
+import "core:fmt"
 import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
 
 W_HEIGHT :: 800
 W_WIDTH :: 800
-SQUARE_SIZE :: 40
+PANEL_HEIGHT :: 100
+SLIDER_WIDTH :: 300
+SLIDER_HEIGHT :: 20
+WINDOW_WIDTH :: W_WIDTH
+WINDOW_HEIGHT :: W_HEIGHT + PANEL_HEIGHT
 TARGET_FPS :: 144
+
+SQUARE_SIZE :: 40
 NUM_SQUARES_X :: W_WIDTH / SQUARE_SIZE
 NUM_SQUARES_Y :: W_HEIGHT / SQUARE_SIZE
-JITTER_RANGE :: 700
-INITIAL_VELOCITY :: 900
+
 MIN_SPEED :: 600
 MAX_SPEED :: 1200
+INITIAL_SPEED :: 900
+JITTER_RANGE :: 700
+SLIDER_MIN :: 0.0
+SLIDER_MAX :: 5.0
 
 Colors :: enum {
 	NightColor,
 	DayColor,
+	Background,
 }
 
 Color_Palette: [Colors]rl.Color = {
 	.NightColor = rl.GetColor(0x114C5AFF),
 	.DayColor   = rl.GetColor(0xD9E8E3FF),
+	.Background = rl.GetColor(0x172B36FF),
 }
 
 Ball :: struct {
@@ -33,13 +45,17 @@ Ball :: struct {
 }
 
 Game_State :: struct {
-	squares: [NUM_SQUARES_X][NUM_SQUARES_Y]rl.Color,
-	balls:   [2]Ball,
+	squares:     [NUM_SQUARES_X][NUM_SQUARES_Y]rl.Color,
+	balls:       [2]Ball,
+	day_score:   int,
+	night_score: int,
+	speed:       f32,
 }
 
 main :: proc() {
 	set_config()
-	rl.InitWindow(W_HEIGHT, W_WIDTH, "Pong wars")
+	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Pong wars")
+	init_gui_style()
 
 	gs := init_game()
 
@@ -57,35 +73,41 @@ set_config :: proc() {
 }
 
 init_game :: proc() -> Game_State {
-
 	squares: [NUM_SQUARES_X][NUM_SQUARES_Y]rl.Color
+	day_score, night_score: int
 	for i in 0 ..< NUM_SQUARES_X {
 		for j in 0 ..< NUM_SQUARES_Y {
-			squares[i][j] =
-				i < NUM_SQUARES_X / 2 ? Color_Palette[.DayColor] : Color_Palette[.NightColor]
+			if i < NUM_SQUARES_X / 2 {
+				squares[i][j] = Color_Palette[.DayColor]
+				day_score += 1
+			} else {
+				squares[i][j] = Color_Palette[.NightColor]
+				night_score += 1
+			}
 		}
 	}
 
 	balls := [2]Ball {
 		{
 			pos = {W_WIDTH / 4, W_HEIGHT / 2},
-			vel = {INITIAL_VELOCITY, -INITIAL_VELOCITY},
+			vel = {INITIAL_SPEED, -INITIAL_SPEED},
 			reverse_color = Color_Palette[.DayColor],
 			ball_color = Color_Palette[.NightColor],
 		},
 		{
 			pos = {(W_WIDTH / 4) * 3, W_HEIGHT / 2},
-			vel = {-INITIAL_VELOCITY, INITIAL_VELOCITY},
+			vel = {-INITIAL_SPEED, INITIAL_SPEED},
 			reverse_color = Color_Palette[.NightColor],
 			ball_color = Color_Palette[.DayColor],
 		},
 	}
 
-	return Game_State{squares, balls}
+	return Game_State{squares, balls, day_score, night_score, 1.0}
 }
 
 update :: proc(gs: ^Game_State) {
-	dt := rl.GetFrameTime()
+	real_dt := rl.GetFrameTime()
+	dt := real_dt * gs.speed
 
 	check_square_collision(gs)
 	check_boundary_collision(gs, dt)
@@ -98,10 +120,17 @@ update :: proc(gs: ^Game_State) {
 
 draw :: proc(gs: ^Game_State) {
 	rl.BeginDrawing()
-
-	rl.ClearBackground(Color_Palette[.NightColor])
+	rl.DrawRectangleGradientV(
+		0,
+		0,
+		WINDOW_WIDTH,
+		WINDOW_HEIGHT,
+		Color_Palette[.Background],
+		Color_Palette[.DayColor],
+	)
 	draw_squares(gs)
 	draw_balls(gs)
+	draw_panel(gs)
 
 	rl.EndDrawing()
 }
@@ -127,6 +156,47 @@ draw_balls :: proc(gs: ^Game_State) {
 	}
 }
 
+draw_panel :: proc(gs: ^Game_State) {
+	text := fmt.ctprintf("day %3d  |  night %3d", gs.day_score, gs.night_score)
+	font_size: i32 = 20
+	text_width := rl.MeasureText(text, font_size)
+
+	text_x := (W_WIDTH - text_width) / 2
+	text_y := W_HEIGHT + 15
+
+	rl.DrawText(text, text_x, i32(text_y), font_size, Color_Palette[.NightColor])
+
+	slider_x := f32(W_WIDTH - SLIDER_WIDTH) / 2
+	slider_y := f32(W_HEIGHT + 50)
+
+	rl.GuiSlider(
+		{slider_x, slider_y, SLIDER_WIDTH, SLIDER_HEIGHT},
+		"",
+		"",
+		&gs.speed,
+		SLIDER_MIN,
+		SLIDER_MAX,
+	)
+
+	label_font_size: i32 = 20
+	rl.DrawText(
+		"0x",
+		i32(slider_x) - 35,
+		i32(slider_y) + 2,
+		label_font_size,
+		Color_Palette[.NightColor],
+	)
+
+	speed_label := fmt.ctprintf("%.1fx", gs.speed)
+	rl.DrawText(
+		speed_label,
+		i32(slider_x) + SLIDER_WIDTH + 10,
+		i32(slider_y) + 2,
+		label_font_size,
+		Color_Palette[.NightColor],
+	)
+}
+
 check_square_collision :: proc(gs: ^Game_State) {
 	for &ball in gs.balls {
 		for angle := f32(0); angle < math.PI * 2.0; angle += math.PI / 4.0 {
@@ -137,6 +207,17 @@ check_square_collision :: proc(gs: ^Game_State) {
 
 			if (i >= 0 && i < NUM_SQUARES_X && j >= 0 && j < NUM_SQUARES_Y) {
 				if (gs.squares[i][j] != ball.reverse_color) {
+					if gs.squares[i][j] == Color_Palette[.DayColor] {
+						gs.day_score -= 1
+					} else {
+						gs.night_score -= 1
+					}
+					if ball.reverse_color == Color_Palette[.DayColor] {
+						gs.day_score += 1
+					} else {
+						gs.night_score += 1
+					}
+
 					gs.squares[i][j] = ball.reverse_color
 
 					if abs(math.cos(angle)) > abs(math.sin(angle)) {
@@ -149,6 +230,7 @@ check_square_collision :: proc(gs: ^Game_State) {
 		}
 	}
 }
+
 
 check_boundary_collision :: proc(gs: ^Game_State, dt: f32) {
 	for &ball in gs.balls {
@@ -178,4 +260,21 @@ add_randomness :: proc(gs: ^Game_State, dt: f32) {
 			ball.vel.y = MIN_SPEED if ball.vel.y > 0 else -MIN_SPEED
 		}
 	}
+}
+
+init_gui_style :: proc() {
+	night := i32(rl.ColorToInt(Color_Palette[.NightColor]))
+	day := i32(rl.ColorToInt(Color_Palette[.DayColor]))
+
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BORDER_COLOR_NORMAL), night)
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BASE_COLOR_NORMAL), night)
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL), night)
+
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BORDER_COLOR_FOCUSED), night)
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BASE_COLOR_FOCUSED), day)
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.TEXT_COLOR_FOCUSED), day)
+
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BORDER_COLOR_PRESSED), night)
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.BASE_COLOR_PRESSED), day)
+	rl.GuiSetStyle(.SLIDER, i32(rl.GuiControlProperty.TEXT_COLOR_PRESSED), day)
 }
