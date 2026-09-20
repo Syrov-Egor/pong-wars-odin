@@ -2,7 +2,7 @@
 ![Demo video](assets/pong_wars.gif)
 
 # Idea
-The original idea belongs to [Koen van Gilst](https://github.com/vnglst/pong-wars).The main twist of this version is simulation speed control (from 0x - total stop up to 5x of default speed).
+The original idea belongs to [Koen van Gilst](https://github.com/vnglst/pong-wars). The main twist of this version is simulation speed control (from 0x - total stop up to 5x of default speed).
 
 # Installation
 To compile it, you'll need the latest [Odin compiler](https://odin-lang.org/docs/install/) installed with [git-lfs](https://git-lfs.com/) enabled to include vendor packages. Also, don't forget to add the Odin compiler executable to your PATH.
