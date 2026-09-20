@@ -1,2 +1,2 @@
 # pong-wars-odin
-Pong wars in Odin lang + raylib
+![Demo video](assets/pong_wars.gif)
